@@ -5,7 +5,7 @@ Project Part A: Searching
 This script contains the entry point to the program (the code in
 `__main__.py` calls `main()`). Your solution starts here!
 """
-
+from collections import defaultdict
 import sys
 import json
 
@@ -29,4 +29,22 @@ def main():
     # `print_board` helper function? (See the `util.py` source code for
     # usage information).
 
-    print_board(data.get("n"), data, message="", ansi=False)
+    # Dictionary contating positions of each hex
+    board = board_dict(data)
+    size = data.get("n")
+
+    
+
+
+    print_board(size, board, message="", ansi=False)
+
+
+
+# Takes the data and transforms the board into a dictionary with keys
+# as the tuple, and colour as the value. 
+def board_dict(data):
+    board = defaultdict()
+    for list in data.get("board"):
+        tuple = (list[1], list[2])
+        board[tuple] = list[0]
+    return board
