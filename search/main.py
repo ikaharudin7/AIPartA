@@ -31,10 +31,16 @@ def main():
 
     # Dictionary contating positions of each hex
     board = board_dict(data)
+
+    # Establish variables from the JSON file
     size = data.get("n")
+    start = data.get("start")
+    goal = data.get("goal")
 
-    
 
+    # Run the heurstic from start to goal 
+    curr_heuristic = calc_heuristic(start, goal)
+    print(curr_heuristic)
 
     print_board(size, board, message="", ansi=False)
 
@@ -44,7 +50,26 @@ def main():
 # as the tuple, and colour as the value. 
 def board_dict(data):
     board = defaultdict()
+
+    # Iterate through list and assign dictionary values
     for list in data.get("board"):
         tuple = (list[1], list[2])
         board[tuple] = list[0]
     return board
+
+# Calculates the start and goal by taking in the coordinates as lists 
+# in [r, q] format.
+def calc_heuristic(start, goal):
+    r1 = start[0]
+    q1 = start[1]
+    r2 = goal[0]
+    q2 = goal[1]
+
+    # If heading top right or bottom left direction, use Manhattan distance
+    if (q2 >= q1 and r2 >= r1 or q2 <= q1 and r2 <= r1):
+        prediction = abs(q2 - q1) + abs(r2 - r1)
+    # If goal is to the left of the start...
+    else:
+        prediction = max(abs(q2 - q1), abs(r2 - r1))
+
+    return prediction
