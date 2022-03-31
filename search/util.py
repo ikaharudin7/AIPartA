@@ -146,3 +146,14 @@ def print_board(n, board_dict, message="", ansi=False, **kwargs):
 
     # Print to terminal (with optional args forwarded)
     print(output, **kwargs)
+
+# Takes the data and transforms the board into a dictionary with keys
+# as the tuple, and colour as the value. 
+def board_dict(data):
+    board = defaultdict()
+
+    # Iterate through list and assign dictionary values
+    for list in data.get("board"):
+        tuple = (list[1], list[2])
+        board[tuple] = list[0]
+    return board
