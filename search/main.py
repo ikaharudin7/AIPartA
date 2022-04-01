@@ -17,6 +17,9 @@ import json
 # then import from them like this:
 from search.util import board_dict, print_board, print_coordinate
 
+# CONSTANTS
+STEP_SIZE = 1
+
 def main():
     try:
         with open(sys.argv[1]) as file:
@@ -24,9 +27,6 @@ def main():
     except IndexError:
         print("usage: python3 -m search path/to/input.json", file=sys.stderr)
         sys.exit(1)
-
-    # CONSTANTS
-    STEP_SIZE = 1
     
     # TODO:
     # Find and print a solution to the board configuration described
@@ -68,21 +68,48 @@ def calc_heuristic(start, goal):
 # Conducts A_star search (unfinished)
 def A_star(size, start, goal, board):
     # Define the priority queues and list of traversed nodes
-    q = PriorityQueue()
+    q = []
     traversed = []
     found = False
 
     # Keep track of which hexes have been travelled to / blocked
     for key in board:
         traversed.append(key)
-
+    
     curr = start
+    cost = 1
+    q.append((calc_heuristic(curr, goal), (curr, cost)))
 
     # Loop through traversals until optimal goal state is found 
     while not found:
-        # Generate the possible branches from the current node
-        generate_branch(curr, size, traversed)
+        # Take the node out of the priority queue
+        q = sorted(q, key=lambda tup: tup[0])
+        curr_tuple = q[0]
+        curr = curr_tuple[1][0]
+        cost = curr_tuple[1][1]
 
+        # Generate the possible branches from the current node
+        neighbours = generate_branch(curr, size, traversed)
+
+        # Insert neighbours into the queues. 
+        for neighbour in neighbours:
+            if neighbour == (goal[0], goal[1]):
+                found = True
+            
+            # Add which nodes have been travelled through
+            traversed.append(neighbour)
+
+            # Functin to calculate the heuristic
+            fn = cost + STEP_SIZE + calc_heuristic(neighbour, goal)
+            q.append((fn, (neighbour, cost)))
+        
+        if len(q) != 0:
+            q.pop(q.index(curr_tuple))
+            
+        print(q)
+            
+
+    
         # Add them to priority queue with its heuristic value. 
         
 
