@@ -1,7 +1,6 @@
 """
 COMP30024 Artificial Intelligence, Semester 1, 2022
 Project Part A: Searching
-
 This script contains the entry point to the program (the code in
 `__main__.py` calls `main()`). Your solution starts here!
 """
@@ -41,8 +40,8 @@ def main():
     goal = data.get("goal")
 
     # A* search function
-    A_star(size, start, goal, board)
-
+    cost = A_star(size, start, goal, board)
+    print(cost)
     print_board(size, board, message="", ansi=False)
 
 
@@ -63,7 +62,7 @@ def calc_heuristic(start, goal):
     else:
         prediction = max(abs(q2 - q1), abs(r2 - r1))
 
-    return prediction
+    return prediction + STEP_SIZE
 
 # Conducts A_star search (unfinished)
 def A_star(size, start, goal, board):
@@ -71,6 +70,10 @@ def A_star(size, start, goal, board):
     q = []
     traversed = []
     found = False
+    complete = False
+    threshold = 0
+    solution = []
+    solution_cost = 0
 
     # Keep track of which hexes have been travelled to / blocked
     for key in board:
@@ -81,37 +84,49 @@ def A_star(size, start, goal, board):
     q.append((calc_heuristic(curr, goal), (curr, cost)))
 
     # Loop through traversals until optimal goal state is found 
-    while not found:
-        # Take the node out of the priority queue
+    while not complete and len(q) > 0:
+        # Sort the hexagons by fn value
         q = sorted(q, key=lambda tup: tup[0])
+        
+        # Get the hexagon with the minimum fn value. 
         curr_tuple = q[0]
         curr = curr_tuple[1][0]
         cost = curr_tuple[1][1]
+        solution.append(curr_tuple)
 
         # Generate the possible branches from the current node
         neighbours = generate_branch(curr, size, traversed)
 
-        # Insert neighbours into the queues. 
+        cost += 1
+        # If a path has been found, and the the heurstic + cost > the 
+        # current goal's cost, get rid of it in the queue
+        if found:
+            if q[0][0] >= threshold:
+                q.pop(q.index(curr_tuple))
+            continue
+
+        
+        # Insert neighbours of current node into the queues. 
         for neighbour in neighbours:
-            if neighbour == (goal[0], goal[1]):
-                found = True
             
             # Add which nodes have been travelled through
             traversed.append(neighbour)
 
-            # Functin to calculate the heuristic
-            fn = cost + STEP_SIZE + calc_heuristic(neighbour, goal)
+            # Functin to using the heuristic (-1 as it counts the current hex's cost 2x)
+            fn = cost + calc_heuristic(neighbour, goal) - STEP_SIZE
             q.append((fn, (neighbour, cost)))
-        
-        if len(q) != 0:
-            q.pop(q.index(curr_tuple))
             
-        print(q)
+            # If the neighbour is the goal, record the solution_cost
+            if neighbour == (goal[0], goal[1]):
+                threshold = fn
+                found = True
+                solution_cost = cost
+
+        q.pop(q.index(curr_tuple))
+        print(solution)
+    return solution_cost
             
 
-    
-        # Add them to priority queue with its heuristic value. 
-        
 
     
 
