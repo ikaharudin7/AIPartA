@@ -4,12 +4,8 @@ Project Part A: Searching
 This script contains the entry point to the program (the code in
 `__main__.py` calls `main()`). Your solution starts here!
 """
-from ast import get_source_segment
 from cmath import inf
 from collections import defaultdict
-from pickle import FALSE
-from queue import PriorityQueue
-from sre_constants import FAILURE
 import sys
 import json
 
@@ -110,10 +106,6 @@ def aStar(start, goal, size, board):
                     open.add(neighbour)
     # If no solution is possible then return failure
     return FAILURE
-
-    
-    
-
 
 # Builds the path 
 def get_history(descended_from, curr, start):
