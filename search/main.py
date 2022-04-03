@@ -4,9 +4,12 @@ Project Part A: Searching
 This script contains the entry point to the program (the code in
 `__main__.py` calls `main()`). Your solution starts here!
 """
+from ast import get_source_segment
+from cmath import inf
 from collections import defaultdict
 from pickle import FALSE
 from queue import PriorityQueue
+from sre_constants import FAILURE
 import sys
 import json
 
@@ -18,6 +21,7 @@ from search.util import board_dict, print_board, print_coordinate
 
 # CONSTANTS
 STEP_SIZE = 1
+FAILURE = 0
 
 def main():
     try:
@@ -39,13 +43,87 @@ def main():
     start = data.get("start")
     goal = data.get("goal")
 
+    solution = aStar(start, goal, size, board)
+
+    # Print out elements of list in reverse order
+    if solution != FAILURE:
+        i = len(solution) - 1
+        while i >= 0:
+            print(solution[i])
+            i -= 1
+    else:
+        print(FAILURE)
+
     # A* search function
-    cost = A_star(size, start, goal, board)
-    print(cost)
-    print_board(size, board, message="", ansi=False)
+    # print_board(size, board, message="", ansi=False)
 
 
+# A star algorithm
+def aStar(start, goal, size, board):
+    # Keep track of which hexes have been blocked
+    blocked = []
+    for hex in board:
+        blocked.append(hex)
 
+    start = (start[0], start[1])
+    goal = (goal[0], goal[1])
+    traversed = []
+
+    # Define set of hexagons who's children have not been fully traversed
+    open = set()
+    open.add(start)
+
+    descended_from = {}
+    
+    # Dictionaries defining a node and its gn and fn values
+    g_cost = {}
+    g_cost[start] = STEP_SIZE
+    function = {}
+    function[start] = calc_heuristic(start, goal) + g_cost[start]
+
+    while len(open) > 0:
+        # Get the node in open with the minimum fn score.
+        curr = min_fn(open, function)
+        blocked.append(curr)
+
+        # If the goal has been found and optimised, print out solution
+        if curr == goal:
+            print(g_cost.get(goal))
+            return get_history(descended_from, curr, start)
+
+        open.remove(curr)
+        for neighbour in generate_branch(curr, size, blocked):
+            curr_dist = g_cost[curr] + STEP_SIZE
+            # If neighbour hasn't been seen yet, set it's g_cost to infinity
+            if neighbour not in traversed:
+                g_cost[neighbour] = inf
+                traversed.append(neighbour)
+                
+
+            # If the distance calculated is lower than its previous cost...
+            if curr_dist < g_cost[neighbour]:
+                descended_from[neighbour] = curr
+                g_cost[neighbour] = curr_dist
+                function[neighbour] = curr_dist + calc_heuristic(neighbour, goal)
+
+                if neighbour not in open:
+                    open.add(neighbour)
+    # If no solution is possible then return failure
+    return FAILURE
+
+    
+    
+
+
+# Builds the path 
+def get_history(descended_from, curr, start):
+    soln = [curr]
+    # Iterate through the descended dictionary
+    while curr in list(descended_from.keys()):
+        curr = descended_from[curr]
+        soln.append(curr)
+    return soln
+    
 
 # Calculates the start and goal by taking in the coordinates as lists 
 # in [r, q] format.
@@ -62,76 +140,11 @@ def calc_heuristic(start, goal):
     else:
         prediction = max(abs(q2 - q1), abs(r2 - r1))
 
-    return prediction + STEP_SIZE
+    return prediction
 
-# Conducts A_star search (unfinished)
-def A_star(size, start, goal, board):
-    # Define the priority queues and list of traversed nodes
-    q = []
-    traversed = []
-    found = False
-    complete = False
-    threshold = 0
-    solution = []
-    solution_cost = 0
-
-    # Keep track of which hexes have been travelled to / blocked
-    for key in board:
-        traversed.append(key)
-    
-    curr = start
-    cost = 1
-    q.append((calc_heuristic(curr, goal), (curr, cost)))
-
-    # Loop through traversals until optimal goal state is found 
-    while not complete and len(q) > 0:
-        # Sort the hexagons by fn value
-        q = sorted(q, key=lambda tup: tup[0])
-        
-        # Get the hexagon with the minimum fn value. 
-        curr_tuple = q[0]
-        curr = curr_tuple[1][0]
-        cost = curr_tuple[1][1]
-        solution.append(curr_tuple)
-
-        # Generate the possible branches from the current node
-        neighbours = generate_branch(curr, size, traversed)
-
-        cost += 1
-        # If a path has been found, and the the heurstic + cost > the 
-        # current goal's cost, get rid of it in the queue
-        if found:
-            if q[0][0] >= threshold:
-                q.pop(q.index(curr_tuple))
-            continue
-
-        
-        # Insert neighbours of current node into the queues. 
-        for neighbour in neighbours:
-            
-            # Add which nodes have been travelled through
-            traversed.append(neighbour)
-
-            # Functin to using the heuristic (-1 as it counts the current hex's cost 2x)
-            fn = cost + calc_heuristic(neighbour, goal) - STEP_SIZE
-            q.append((fn, (neighbour, cost)))
-            
-            # If the neighbour is the goal, record the solution_cost
-            if neighbour == (goal[0], goal[1]):
-                threshold = fn
-                found = True
-                solution_cost = cost
-
-        q.pop(q.index(curr_tuple))
-        print(solution)
-    return solution_cost
-            
-
-
-    
 
 # Generate the possible branches from that node
-def generate_branch(curr, size, traversed):
+def generate_branch(curr, size, blocked):
     branches = []
     max = size
     min = 0
@@ -140,22 +153,22 @@ def generate_branch(curr, size, traversed):
     q1 = curr[1]
 
     # Add possible branches into the branches list (Just brute force as there are only 6)
-    if r1 - 1 >= min and (r1 - 1, q1) not in traversed:
+    if r1 - 1 >= min and (r1 - 1, q1) not in blocked:
         branches.append((r1 - 1, q1))
 
-    if r1 + 1 < max  and (r1 + 1, q1) not in traversed:
+    if r1 + 1 < max  and (r1 + 1, q1) not in blocked:
         branches.append((r1 + 1, q1))
     
-    if q1 - 1 >= min and (r1, q1 - 1) not in traversed:
+    if q1 - 1 >= min and (r1, q1 - 1) not in blocked:
         branches.append((r1, q1 - 1))
     
-    if q1 + 1 < max and (r1, q1 + 1) not in traversed:
+    if q1 + 1 < max and (r1, q1 + 1) not in blocked:
         branches.append((r1, q1 + 1))
 
-    if q1 + 1 < max and r1 - 1 >= min and (r1 - 1, q1 + 1) not in traversed:
+    if q1 + 1 < max and r1 - 1 >= min and (r1 - 1, q1 + 1) not in blocked:
         branches.append((r1 - 1, q1 + 1))
 
-    if q1 - 1 >= min and r1 + 1 < max and (r1 + 1, q1 - 1) not in traversed:
+    if q1 - 1 >= min and r1 + 1 < max and (r1 + 1, q1 - 1) not in blocked:
         branches.append((r1 + 1, q1 - 1))
 
     return branches
@@ -170,3 +183,15 @@ def board_dict(data):
         tuple = (list[1], list[2])
         board[tuple] = list[0]
     return board
+
+# Get node in openset with smallest fn value
+def min_fn(openset, function):
+    scores = []
+    # Iteratte through the openset
+    for hex in openset:
+        scores.append((function[hex], hex))
+    
+    scores.sort(key=lambda y: y[0])
+
+    return scores[0][1]
+    
