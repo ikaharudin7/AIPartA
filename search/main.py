@@ -8,6 +8,7 @@ This script contains the entry point to the program (the code in
 from collections import defaultdict
 from pickle import FALSE
 from queue import PriorityQueue
+from re import I
 import sys
 import json
 
@@ -37,16 +38,35 @@ def main():
 
     # Establish variables from the JSON file
     size = data.get("n")
-    start = data.get("start")
-    goal = data.get("goal")
+    start = (data.get("start")[0], data.get("start")[1])
+    goal = (data.get("goal")[0], data.get("goal")[1])
 
-    # A* search function
-    A_star(size, start, goal, board)
+    # Create a list for storing all nodes in various branches, from the start
+    # first index is the node itself as a tuple coordinate
+    # second index is whether it has been traversed(1) or not(0)
+    # third index is the value of f(n)
+    branch_nodes = [[start, 0, calc_heuristic(start, goal)]] 
 
+    # create a list to hold the shortest path found
+    shortest_path = []
+
+    curr = start 
+    # perform find_shortest_path(size, board, start, goal, curr, branch_nodes, shortest_path)
+    print(find_shortest_path(size, board, start, goal, curr, branch_nodes, shortest_path))
+    print(branch_nodes)
     print_board(size, board, message="", ansi=False)
 
 
-
+# Checks if the given node is found in the branch_nodes list, returning the index if found, else -1
+def check_in_branch_nodes(node, branch_nodes): 
+    in_or_not = -1
+    i = 0
+    for elem in branch_nodes:
+        if (elem[0] == node):
+            in_or_not = i 
+            break
+        i = i + 1
+    return in_or_not
 
 # Calculates the start and goal by taking in the coordinates as lists 
 # in [r, q] format.
@@ -65,85 +85,6 @@ def calc_heuristic(start, goal):
 
     return prediction
 
-# Conducts A_star search (unfinished)
-def A_star(size, start, goal, board):
-    # Define the priority queues and list of traversed nodes
-    q = []
-    traversed = []
-    found = False
-
-    # Keep track of which hexes have been travelled to / blocked
-    for key in board:
-        traversed.append(key)
-    
-    curr = start
-    cost = 1
-    q.append((calc_heuristic(curr, goal), (curr, cost)))
-
-    # Loop through traversals until optimal goal state is found 
-    while not found:
-        # Take the node out of the priority queue
-        q = sorted(q, key=lambda tup: tup[0])
-        curr_tuple = q[0]
-        curr = curr_tuple[1][0]
-        cost = curr_tuple[1][1]
-
-        # Generate the possible branches from the current node
-        neighbours = generate_branch(curr, size, traversed)
-
-        # Insert neighbours into the queues. 
-        for neighbour in neighbours:
-            if neighbour == (goal[0], goal[1]):
-                found = True
-            
-            # Add which nodes have been travelled through
-            traversed.append(neighbour)
-
-            # Functin to calculate the heuristic
-            fn = cost + STEP_SIZE + calc_heuristic(neighbour, goal)
-            q.append((fn, (neighbour, cost)))
-        
-        if len(q) != 0:
-            q.pop(q.index(curr_tuple))
-            
-        print(q)
-            
-
-    
-        # Add them to priority queue with its heuristic value. 
-        
-
-    
-
-# Generate the possible branches from that node
-def generate_branch(curr, size, traversed):
-    branches = []
-    max = size
-    min = 0
-
-    r1 = curr[0]
-    q1 = curr[1]
-
-    # Add possible branches into the branches list (Just brute force as there are only 6)
-    if r1 - 1 >= min and (r1 - 1, q1) not in traversed:
-        branches.append((r1 - 1, q1))
-
-    if r1 + 1 < max  and (r1 + 1, q1) not in traversed:
-        branches.append((r1 + 1, q1))
-    
-    if q1 - 1 >= min and (r1, q1 - 1) not in traversed:
-        branches.append((r1, q1 - 1))
-    
-    if q1 + 1 < max and (r1, q1 + 1) not in traversed:
-        branches.append((r1, q1 + 1))
-
-    if q1 + 1 < max and r1 - 1 >= min and (r1 - 1, q1 + 1) not in traversed:
-        branches.append((r1 - 1, q1 + 1))
-
-    if q1 - 1 >= min and r1 + 1 < max and (r1 + 1, q1 - 1) not in traversed:
-        branches.append((r1 + 1, q1 - 1))
-
-    return branches
 
 # Takes the data and transforms the board into a dictionary with keys
 # as the tuple, and colour as the value. 
@@ -152,6 +93,87 @@ def board_dict(data):
 
     # Iterate through list and assign dictionary values
     for list in data.get("board"):
-        tuple = (list[1], list[2])
-        board[tuple] = list[0]
+        coordinate = (list[1], list[2])
+        board[coordinate] = list[0]
     return board
+
+# returns a node's neighbours, on the grid 
+def neighbours_on_grid(node, size):
+    r1 = node[0]
+    q1 = node[1]
+    min = 0 
+    max = size - 1
+
+    # there are at most 6 neighbours of any given node 
+    all_neighbours = [(r1,q1-1), (r1,q1+1), (r1-1,q1), (r1-1,q1+1), (r1+1,q1), (r1+1,q1-1)]
+    on_grid = [] # the neighbours which are on the grid
+    for neighbour in all_neighbours:
+        if (neighbour[0] > max or neighbour[0] < min or neighbour[1] > max or neighbour[1] < min):
+            continue
+        on_grid.append(neighbour)
+    return on_grid
+
+# checks to see if this node is blocked
+def node_is_blocked(node, board):
+    blocked_nodes = [] 
+    is_blocked = 0
+    for elem in board:
+        blocked_nodes.append(elem)
+
+    for coordinate in blocked_nodes:
+        if (coordinate == node):
+            is_blocked = 1
+
+    return is_blocked
+
+# Returns a list containing the shortest path 
+def find_shortest_path(size, board, start, goal, curr, branch_nodes, shortest_path):
+    new_curr = () 
+    if (curr == goal): # we have reached the end of the path 
+        shortest_path.append(curr)
+        j = check_in_branch_nodes(curr, branch_nodes)
+        branch_nodes[j][1] = 1 # mark this node as traversed
+        return shortest_path 
+
+    else: 
+        # these are the neighbours on the grid
+        on_grid = neighbours_on_grid(curr, size)
+        # set a list of the feasible neighbours of the current node
+        possible_neighbours = []
+
+        for neighbour in on_grid:
+            if (check_in_branch_nodes(neighbour,branch_nodes) != -1):
+                continue 
+            if (node_is_blocked(neighbour, board) == 1):
+                continue
+            else:
+                possible_neighbours.append(neighbour)
+
+        # if no neighbours feasible...
+        if (len(possible_neighbours) == 0):
+            i = check_in_branch_nodes(curr, branch_nodes)
+            branch_nodes.pop(i)
+            if (len(branch_nodes) >= i + 1): 
+                new_curr = branch_nodes[i][0]
+            else: 
+                new_curr = branch_nodes[i-1][0]
+
+        else: 
+            shortest_path.append(curr)
+            j = check_in_branch_nodes(curr, branch_nodes)
+            branch_nodes[j][1] = 1 # mark this node as traversed 
+            g_n = len(shortest_path) # the path cost to get from the start node to these neighbours
+            priority_queue = []
+
+            for neighbour in possible_neighbours: 
+                priority_queue.append((g_n+calc_heuristic(neighbour, goal), neighbour))
+            priority_queue.sort()
+
+            # append this onto branch_nodes in order of priority
+            for elem in priority_queue:
+                node = [elem[1], 0, elem[0]]
+                branch_nodes.append(node)
+            new_curr = priority_queue[0][1]
+    
+    return find_shortest_path(size, board, start, goal, new_curr, branch_nodes, shortest_path)
+    

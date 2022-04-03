@@ -154,6 +154,6 @@ def board_dict(data):
 
     # Iterate through list and assign dictionary values
     for list in data.get("board"):
-        tuple = (list[1], list[2])
-        board[tuple] = list[0]
+        coordinate = (list[1], list[2])
+        board[coordinate] = list[0]
     return board
