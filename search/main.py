@@ -45,7 +45,8 @@ def main():
     # first index is the node itself as a tuple coordinate
     # second index is whether it has been traversed(1) or not(0)
     # third index is the value of f(n)
-    branch_nodes = [[start, 0, calc_heuristic(start, goal)]] 
+    # fourth index is whether the node is in the current path(1) or not (0)
+    branch_nodes = [[start, 0, calc_heuristic(start, goal), 1]] 
 
     # create a list to hold the shortest path found
     shortest_path = []
@@ -53,7 +54,6 @@ def main():
     curr = start 
     # perform find_shortest_path(size, board, start, goal, curr, branch_nodes, shortest_path)
     print(find_shortest_path(size, board, start, goal, curr, branch_nodes, shortest_path))
-    print(branch_nodes)
     print_board(size, board, message="", ansi=False)
 
 
@@ -126,17 +126,98 @@ def node_is_blocked(node, board):
 
     return is_blocked
 
+# find the length of the current path 
+def len_current_path(branch_nodes):
+    len = 0
+    for elem in branch_nodes:
+        if (elem[3] == 1):
+            len = len + 1
+    return len
+
+# Once we found a path, find the node in the whole tree with the next best f(n) value 
+# then return the renewed tree after cancelling out the trailing nodes 
+def next_optimal_node(branch_nodes): 
+    i = len(branch_nodes) - 1
+    j = len(branch_nodes) - 1
+    # find the indexes of the nodes we need to delete from the tree 
+    indexes = []
+    while (i >= 0):
+        if (branch_nodes[i][1] == 1 or branch_nodes[i][2] >= (len_current_path(branch_nodes)-1)):
+            indexes.append(i) 
+        else: # we found the index of the next optimal node
+            break 
+        i = i - 1
+    
+    new_branch_nodes = []
+    k = 0
+    while (k <= j): 
+        if (indexes.count(k) > 0):
+            k = k + 1
+            continue
+        else:
+            new_branch_nodes.append(branch_nodes[k])
+            k = k + 1
+
+    if (len(new_branch_nodes) != 0):
+        n = len(new_branch_nodes) - 1
+        while (n >= 0): 
+            if (new_branch_nodes[n][3] == 1):
+                break
+            else: 
+                n = n - 1
+        new_branch_nodes.pop(n)
+
+    return new_branch_nodes
+
+# append the path nodes on branch_nodes onto shortest_path list
+def append_to_path(branch_nodes, shortest_path): 
+    for elem in branch_nodes:
+        if (elem[3] == 1):
+            shortest_path.append(elem[0]) 
+    return shortest_path
+
+# delete all coordinates in path
+def delete_path(shortest_path):
+    for i in range(len(shortest_path)):
+        shortest_path.pop(len(shortest_path)-1)
+
 # Returns a list containing the shortest path 
 def find_shortest_path(size, board, start, goal, curr, branch_nodes, shortest_path):
+    print(curr)
     new_curr = () 
     if (curr == goal): # we have reached the end of the path 
-        shortest_path.append(curr)
-        j = check_in_branch_nodes(curr, branch_nodes)
-        branch_nodes[j][1] = 1 # mark this node as traversed
-        return shortest_path 
+        index = check_in_branch_nodes(curr, branch_nodes)
+        branch_nodes[index][1] = 1 # mark this node as traversed
+        branch_nodes[index][3] = 1 # append this node onto the path
+
+        if (len(shortest_path) == 0): # this is the first path found
+            # turn path from branch into shortest path
+            append_to_path(branch_nodes, shortest_path)
+            # set up a new path going from the next most optimum node
+            branch_nodes = next_optimal_node(branch_nodes)
+            if (len(branch_nodes) == 0): # no next optimal node found
+                return shortest_path
+            else: # there may be another shorter path, hence check
+                new_curr = branch_nodes[len(branch_nodes)-1][0]  
+        else: 
+            # check if the current path is shortest 
+            if (len_current_path(branch_nodes) < len(shortest_path)):
+                delete_path(shortest_path)
+                append_to_path(branch_nodes, shortest_path)
+                branch_nodes = next_optimal_node(branch_nodes)
+                if (len(branch_nodes) == 0): # no next optimal node found
+                    return shortest_path
+                else: # there may be another shorter path, hence check
+                    new_curr = branch_nodes[len(branch_nodes)-1][0] 
+            else: 
+                branch_nodes = next_optimal_node(branch_nodes)
+                if (len(branch_nodes) == 0): # no next optimal node found
+                    return shortest_path
+                else: # there may be another shorter path, hence check
+                    new_curr = branch_nodes[len(branch_nodes)-1][0]
 
     else: 
-        # these are the neighbours on the grid
+        # these are the neighbours on the grid, but not all of them are feasible
         on_grid = neighbours_on_grid(curr, size)
         # set a list of the feasible neighbours of the current node
         possible_neighbours = []
@@ -152,17 +233,22 @@ def find_shortest_path(size, board, start, goal, curr, branch_nodes, shortest_pa
         # if no neighbours feasible...
         if (len(possible_neighbours) == 0):
             i = check_in_branch_nodes(curr, branch_nodes)
-            branch_nodes.pop(i)
-            if (len(branch_nodes) >= i + 1): 
-                new_curr = branch_nodes[i][0]
+            if (len(branch_nodes) > (i + 1)): 
+                new_curr = branch_nodes[i+1][0]
             else: 
-                new_curr = branch_nodes[i-1][0]
+                n = len(branch_nodes) - 1
+                while (n >= 0): 
+                    if (branch_nodes[n][3] == 1):
+                        break
+                    branch_nodes.pop(len(branch_nodes)-1) 
+                    n = n - 1
+                new_curr = branch_nodes[len(branch_nodes)-1][0]
 
         else: 
-            shortest_path.append(curr)
             j = check_in_branch_nodes(curr, branch_nodes)
             branch_nodes[j][1] = 1 # mark this node as traversed 
-            g_n = len(shortest_path) # the path cost to get from the start node to these neighbours
+            branch_nodes[j][3] = 1 # mark this node as found in the current path 
+            g_n = len_current_path(branch_nodes) # the path cost to get from the start node to these neighbours
             priority_queue = []
 
             for neighbour in possible_neighbours: 
@@ -171,9 +257,11 @@ def find_shortest_path(size, board, start, goal, curr, branch_nodes, shortest_pa
 
             # append this onto branch_nodes in order of priority
             for elem in priority_queue:
-                node = [elem[1], 0, elem[0]]
+                node = [elem[1], 0, elem[0], 0]
                 branch_nodes.append(node)
             new_curr = priority_queue[0][1]
+            print(priority_queue)
+            print(branch_nodes)
     
     return find_shortest_path(size, board, start, goal, new_curr, branch_nodes, shortest_path)
     
