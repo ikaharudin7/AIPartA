@@ -50,8 +50,6 @@ def main():
     else:
         print(FAILURE)
 
-    # A* search function
-    # print_board(size, board, message="", ansi=False)
 
 
 # A star algorithm
